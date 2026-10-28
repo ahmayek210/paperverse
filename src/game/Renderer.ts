@@ -1,0 +1,22 @@
+import type { BiomeId, Creature } from '../types';
+import { Camera } from './Camera';
+import { AnimationEngine, type Pose } from './AnimationEngine';
+import { drawBiome } from './Biomes';
+import { speciesById } from './SpeciesRegistry';
+
+type Cached={image:HTMLImageElement,state:'loading'|'ready'|'error'};
+export class Renderer {
+  readonly camera=new Camera(); readonly animation=new AnimationEngine(); private images=new Map<string,Cached>(); private poses=new Map<string,Pose>(); private raf=0; private creatures:Creature[]=[]; private biome:BiomeId='ocean'; private ctx:CanvasRenderingContext2D; private dpr=1;
+  onHit?:(creature:Creature)=>void;
+  constructor(private canvas:HTMLCanvasElement){const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas 2D kullanılamıyor');this.ctx=ctx;this.resize();}
+  setScene(b:BiomeId,creatures:Creature[]){this.biome=b;this.creatures=creatures;for(const c of creatures)if(c.spriteUrl)this.load(c.spriteUrl);}
+  start(){this.stop();const tick=(t:number)=>{this.render(t);this.raf=requestAnimationFrame(tick)};this.raf=requestAnimationFrame(tick);}
+  stop(){cancelAnimationFrame(this.raf)}
+  resize(){const r=this.canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.max(1,Math.round(r.width*this.dpr));this.canvas.height=Math.max(1,Math.round(r.height*this.dpr));this.camera.clamp(r.width,r.height);}
+  pan(dx:number,dy:number){this.camera.x-=dx/this.camera.zoom;this.camera.y-=dy/this.camera.zoom;this.camera.clamp(this.canvas.clientWidth,this.canvas.clientHeight);}
+  zoomAt(factor:number,sx:number,sy:number){const before=this.camera.screenToWorld(sx,sy);this.camera.zoom=Math.max(.65,Math.min(1.8,this.camera.zoom*factor));const after=this.camera.screenToWorld(sx,sy);this.camera.x+=before.x-after.x;this.camera.y+=before.y-after.y;this.camera.clamp(this.canvas.clientWidth,this.canvas.clientHeight);}
+  hit(sx:number,sy:number){const p=this.camera.screenToWorld(sx,sy);for(let i=this.creatures.length-1;i>=0;i--){const c=this.creatures[i],pose=this.poses.get(c.id);if(!pose)continue;const size=95*c.scale;if(Math.hypot(p.x-pose.x,p.y-pose.y)<size){this.animation.react(c.id,speciesById.get(c.species_id)?.reaction||'turn');this.onHit?.(c);return c;}}}
+  private load(url:string){if(this.images.has(url))return;const image=new Image();image.crossOrigin='anonymous';const cached={image,state:'loading' as const};this.images.set(url,cached);image.onload=()=>this.images.set(url,{image,state:'ready'});image.onerror=()=>this.images.set(url,{image,state:'error'});image.src=url;}
+  private render(t:number){const {ctx}=this;const w=this.canvas.clientWidth,h=this.canvas.clientHeight;ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.clearRect(0,0,w,h);ctx.save();this.camera.apply(ctx);drawBiome(ctx,this.biome,this.camera.worldWidth,this.camera.worldHeight,t);for(const c of this.creatures){const pose=this.animation.pose(c,t);this.poses.set(c.id,pose);if(pose.x<this.camera.x-160||pose.x>this.camera.x+w/this.camera.zoom+160)continue;this.drawCreature(c,pose,t);}ctx.restore();}
+  private drawCreature(c:Creature,p:Pose,t:number){const {ctx}=this;const species=speciesById.get(c.species_id);const size=110*c.scale;ctx.save();ctx.globalAlpha=p.alpha;ctx.translate(p.x,p.y);ctx.fillStyle='rgba(30,25,20,.2)';ctx.beginPath();ctx.ellipse(0,size*.45,size*.42* p.shadow,size*.12*p.shadow,0,0,Math.PI*2);ctx.fill();if(p.trail!=='none'){ctx.globalAlpha=.32;ctx.fillStyle=p.trail==='thrust'?'#f2b75f':p.trail==='bubble'?'#e9fcff':p.trail==='snow'?'#fff':'#ead7a3';for(let i=1;i<4;i++){ctx.beginPath();ctx.arc(-i*20,Math.sin(t*.003+i)*8,5-i*.7,0,Math.PI*2);ctx.fill();}}ctx.globalAlpha=p.alpha;ctx.rotate(p.rotation);const dir=Math.cos((t/1000+c.motion_seed)*.13)>=0?1:-1;ctx.scale((species?.facing==='horizontal'?dir:1)*p.scaleX,p.scaleY);const cached=c.spriteUrl?this.images.get(c.spriteUrl):undefined;if(cached?.state==='ready'){const im=cached.image;const ratio=Math.min(size/im.width,size/im.height);ctx.drawImage(im,-im.width*ratio/2,-im.height*ratio/2,im.width*ratio,im.height*ratio);}else{ctx.fillStyle='#f7edcf';ctx.strokeStyle='#3c3934';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,size*.34,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#3c3934';ctx.font='600 14px system-ui';ctx.textAlign='center';ctx.fillText(cached?.state==='error'?'Çizim açılamadı':'Çizim yükleniyor',0,5);}ctx.restore();}
+}
