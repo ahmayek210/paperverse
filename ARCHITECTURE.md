@@ -17,7 +17,7 @@ Canonical kaynak Supabase Postgres'tir. `paperverse_private` şemasındaki dar �
 
 Storage yolu `worldId/userId/creatureId.webp` biçimindedir; tablo check constraint'i yol ile satır sahipliğini eşler. Metadata insert başarısız olursa istemci upload'ı temizler. Delete soft-delete kaydı ile Storage temizliğini birlikte yürütür.
 
-Realtime bir hızlandırma katmanıdır. Broadcast sonrasında tam DB refetch yapılır; yeniden bağlanma da snapshot uzlaştırması tetikler. Kalıcılık Broadcast/Presence'a bağlı değildir.
+Realtime bir hızlandırma katmanıdır. RLS korumalı `postgres_changes` kanalı veri değişikliklerinde tam DB refetch başlatır; private Broadcast/Presence etkin olduğunda daha hızlı sinyal ve çevrimiçi adları sağlar. Yeniden bağlanma da snapshot uzlaştırması tetikler. Kalıcılık hiçbir Realtime kanalına bağlı değildir.
 
 ## Hareket davranışları
 

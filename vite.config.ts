@@ -5,5 +5,5 @@ export default defineConfig({
   base: '/paperverse/',
   plugins: [react()],
   build: { target: 'es2022', sourcemap: true },
-  test: { environment: 'jsdom', include: ['src/**/*.test.ts'] },
+  test: { environment: 'jsdom', include: ['src/**/*.test.ts'], pool: 'threads', maxWorkers: 1, fileParallelism: false },
 });
