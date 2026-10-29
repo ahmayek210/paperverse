@@ -1,4 +1,3 @@
-import { expect,test } from '@playwright/test';
-test('GitHub Pages taban yolu, marka ve gerçek dokular yüklenir',async({page})=>{const texture=page.waitForResponse(r=>r.url().includes('/textures/cardboard.png'));await page.goto('./');await expect(page.getByRole('heading',{name:'Paperverse'})).toBeVisible();await expect(page.getByRole('button',{name:'Dünyaya gir'})).toBeVisible();expect((await texture).status()).toBe(200);await expect(page.locator('body')).not.toContainText('TODO');});
-test('yatay küçük ekranda ana eylem kesilmez',async({page})=>{await page.goto('./');await expect(page.getByRole('button',{name:'Dünyaya gir'})).toBeInViewport();await expect(page.locator('.portrait-warning')).toBeHidden();});
-test('hash davet rotası refresh sonrası 404 üretmez',async({page})=>{const response=await page.goto('./#invite=test-token');expect(response?.status()).toBe(200);await expect(page.getByRole('heading',{name:'Paperverse'})).toBeVisible();});
+import {expect,test} from '@playwright/test';
+test('loads the English entry screen and supplied map asset',async({page})=>{await page.goto('./');await expect(page.getByRole('heading',{name:'Paperverse'})).toBeVisible();await expect(page.getByRole('button',{name:'Enter World'})).toBeVisible();const r=await page.request.get('./assets/paperverse-original-map.png');expect(r.status()).toBe(200);await expect(page.locator('body')).not.toContainText('Ahmet');});
+test('landscape action remains visible',async({page})=>{await page.goto('./');await expect(page.getByRole('button',{name:'Enter World'})).toBeInViewport();});

@@ -1,41 +1,16 @@
-import type { Creature, Species } from '../types';
+import type { Creature } from '../types';
 import { speciesById } from './SpeciesRegistry';
-
-export interface Pose { x:number;y:number;rotation:number;scaleX:number;scaleY:number;alpha:number;trail:string;shadow:number }
-const frac=(n:number)=>n-Math.floor(n);
-const hash=(seed:number,n:number)=>frac(Math.sin(seed*91.17+n*412.31)*43758.5453);
-const smooth=(v:number)=>v*v*(3-2*v);
-
-export class AnimationEngine {
-  private reactions=new Map<string,{kind:string,at:number}>();
-  react(id:string,kind:string){this.reactions.set(id,{kind,at:performance.now()/1000});}
-  pose(creature:Creature,nowMs:number):Pose {
-    const p=speciesById.get(creature.species_id); if(!p)return {x:creature.x,y:creature.y,rotation:0,scaleX:1,scaleY:1,alpha:1,trail:'none',shadow:1};
-    const t=nowMs/1000+new Date(creature.created_at).getTime()/1000%997; const seed=creature.motion_seed; const cycle=5+hash(seed,1)*8; const phase=t/cycle; const k=Math.floor(phase),u=smooth(frac(phase));
-    const a=target(seed,k,p),b=target(seed,k+1,p); let x=creature.x+(a.x+(b.x-a.x)*u); let y=creature.y+(a.y+(b.y-a.y)*u);
-    const beat=t*(p.speed[0]+p.speed[1])*.035; let rotation=0, sx=1,sy=1,alpha=1;
-    switch(p.movement){
-      case 'swim': y+=Math.sin(beat)*24;rotation=Math.sin(beat*.55)*.09;sx=1+.025*Math.sin(beat*2);break;
-      case 'hover': y+=Math.sin(beat*.7)*34;rotation=Math.sin(beat*.36)*.12;break;
-      case 'pulse': y-=frac(beat*.22)*55;sy=.88+.18*(.5+.5*Math.sin(beat*2.2));sx=1.1-(sy-1)*.5;alpha=.82+.18*Math.sin(beat)**2;break;
-      case 'jet': {const burst=Math.pow(Math.max(0,Math.sin(beat*.62)),5);x+=burst*90; sx=1+.14*burst;sy=1-.09*burst;rotation=Math.sin(beat*.3)*.16;break;}
-      case 'walk': y+=Math.abs(Math.sin(beat*1.8))*-8;rotation=Math.sin(beat*1.8)*.035;break;
-      case 'hop': {const h=Math.abs(Math.sin(beat*.88));y-=h*h*65;sy=1-.16*h;sx=1+.1*h;rotation=Math.sin(beat*.44)*.08;break;}
-      case 'flutter': y+=Math.sin(beat*1.35)*30+Math.sin(beat*.47)*14;rotation=Math.sin(beat*.9)*.18;sx=.94+.1*Math.sin(beat*3.8);break;
-      case 'sprint': {const moving=frac(phase*3)<.56;x+=moving?Math.sin(beat*.2)*40:0;rotation=moving?Math.sin(beat*3)*.06:0;break;}
-      case 'glide': y+=Math.sin(beat*.35)*28;rotation=Math.sin(beat*.22)*.18;break;
-      case 'patrol': rotation=(Math.floor(phase*4)%2?1:-1)*.025;y+=Math.abs(Math.sin(beat*2))*-4;break;
-      case 'orbit': {const r=45+hash(seed,4)*45;x+=Math.cos(beat*.18)*r;y+=Math.sin(beat*.18)*r*.45;rotation+=beat*.08;break;}
-      case 'slide': {const slide=Math.max(0,Math.sin(beat*.42));x+=slide*55;rotation=Math.sin(beat*.42)*.08;y-=Math.abs(Math.sin(beat*1.1))*5;break;}
-    }
-    const react=this.reactions.get(creature.id); if(react){const age=t-react.at;if(age>1.25)this.reactions.delete(creature.id);else{const q=1-age/1.25; if(react.kind==='flee'||react.kind==='boost')x+=130*q;if(react.kind==='hop'||react.kind==='slide')y-=Math.sin(age*Math.PI/1.25)*90;if(react.kind==='pulse'){sx+=.25*q;sy+=.25*q;}if(react.kind==='spin')rotation+=q*Math.PI*2;if(react.kind==='wave'||react.kind==='greet')rotation+=Math.sin(age*18)*.2*q;}}
-    return {x,y,rotation:rotation+creature.rotation,scaleX:sx,scaleY:sy,alpha,trail:p.trail,shadow:p.bounds==='air'||p.bounds==='space'?.6:1};
-  }
-}
-
-function target(seed:number,k:number,p:Species){
-  const travel=p.bounds==='ground'||p.bounds==='road'||p.bounds==='wall'?{x:(hash(seed,k*3)-.5)*650,y:0}:{x:(hash(seed,k*3)-.5)*700,y:(hash(seed,k*3+1)-.5)*330};
-  if(p.bounds==='road')travel.y=80*Math.sin((hash(seed,k+2)-.5)*Math.PI);
-  if(p.bounds==='ground')travel.y=(hash(seed,k+5)-.5)*55;
-  return travel;
+export interface Pose{x:number;y:number;rotation:number;scaleX:number;scaleY:number;alpha:number;trail:string;shadow:number;vx:number}
+const frac=(n:number)=>n-Math.floor(n); const hash=(a:number,b:number)=>frac(Math.sin(a*91.17+b*412.31)*43758.5453); const smooth=(n:number)=>n*n*(3-2*n);
+export class AnimationEngine{
+ private reactions=new Map<string,{kind:string;at:number}>();
+ react(id:string,kind:string,now=performance.now()){this.reactions.set(id,{kind,at:now});}
+ pose(c:Creature,nowMs:number):Pose{const s=speciesById.get(c.species_id);if(!s)return{x:c.x,y:c.y,rotation:0,scaleX:1,scaleY:1,alpha:1,trail:'none',shadow:1,vx:0};const t=nowMs/1000+c.motion_seed%997,seed=c.motion_seed;const cycle=4+s.pause[0]+hash(seed,4)*(s.pause[1]-s.pause[0]+5);const q=t/cycle,k=Math.floor(q),u=smooth(frac(q));const range=s.id==='starfish'?68:s.id==='seahorse'?105:175;const a={x:(hash(seed,k*2)-.5)*range*2,y:(hash(seed,k*2+1)-.5)*(s.id==='starfish'?20:range)};const b={x:(hash(seed,(k+1)*2)-.5)*range*2,y:(hash(seed,(k+1)*2+1)-.5)*(s.id==='starfish'?20:range)};let x=c.x+a.x+(b.x-a.x)*u,y=c.y+a.y+(b.y-a.y)*u;let vx=(b.x-a.x)*(6*u*(1-u))/cycle;let sx=1,sy=1,rotation=0,alpha=1;const beat=t*(s.speed[0]+s.speed[1])*.027;
+ if(s.id==='fish'){y+=Math.sin(beat)*13;rotation=Math.sin(beat*.6)*.08;sx+=Math.sin(beat*2)*.025}
+ else if(s.id==='seahorse'){x+=Math.sin(beat*.42)*24;y+=Math.sin(beat*.85)*37;rotation=Math.sin(beat*.5)*.13}
+ else if(s.id==='jellyfish'){y-=frac(beat*.17)*38;sy=.9+.14*(.5+.5*Math.sin(beat*2.3));sx=1.06-(sy-1)*.45;alpha=.86+.14*Math.sin(beat)**2}
+ else {y=Math.max(775,y)+Math.sin(beat*.7)*3;rotation=Math.sin(beat*.3)*.08;vx*=.25}
+ const r=this.reactions.get(c.id);if(r){const age=nowMs-r.at;if(age>1250)this.reactions.delete(c.id);else{const p=1-age/1250;if(r.kind==='flee'){x+=(vx>=0?1:-1)*110*p;vx+=(vx>=0?1:-1)*150*p}else if(r.kind==='pulse'){sx+=.2*p;sy+=.2*p}else rotation+=Math.sin(age*.015)*.25*p;}}
+ return{x:Math.max(45,Math.min(2355,x)),y:Math.max(s.id==='starfish'?760:80,Math.min(850,y)),rotation:rotation+c.rotation,scaleX:sx,scaleY:sy,alpha,trail:s.trail,shadow:s.id==='jellyfish'?.55:1,vx};
+ }
 }

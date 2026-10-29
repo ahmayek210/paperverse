@@ -1,25 +1,19 @@
 # Paperverse
 
-**Çiz. Canlandır. Birlikte yaşat.** Paperverse, iki kişinin kendi çizdiği canlılarla sekiz kâğıt biyomu birlikte doldurduğu kalıcı Türkçe bir web oyunudur.
+Paperverse is a browser drawing sandbox. Draw a creature, place it in an explorable Ocean, and revisit the saved World.
 
-Canlı sürüm: <https://ahmayek210.github.io/paperverse/>
+## Scope
 
-## İlk dünya ve Ada'yı davet etme
+- Ocean is the only playable environment.
+- Freehand drawing, transparent sprite export, placement, saved creatures, and species-specific motion.
+- A World supports up to two authorized members through a single-use invitation.
+- Other illustrated map regions are intentionally marked Coming Soon.
 
-1. **Dünyaya gir** düğmesine bas, görünen adını yaz ve dünyana bir ad ver.
-2. Üst menüde **Davet** → **Bağlantıyı kopyala** seçeneğini kullan.
-3. Bağlantıyı Ada'ya gönder; Ada bağlantıyı farklı bir tarayıcı/profilde açıp adını seçer.
-4. Davet tek kullanımlıktır ve 24 saatte sona erer. Dünya iki üyeye ulaştığında yeni katılım kapanır.
-5. Bir biyoma gir, **Çiz** ile türünü seç, çizimini adlandır ve sahnede yerini belirle.
-
-> Anonim oturum tarayıcı verisi silinirse geri alınamaz. Profildeki **Hesabımı koru** akışı mevcut kullanıcı kimliğine e-posta ekler.
-
-## Geliştirme
-
-Node.js 24 kullanılır. `.env.example` dosyasını `.env.local` olarak kopyalayıp Supabase proje URL'si ile publishable key'i girin.
+## Development
 
 ```bash
 npm ci
+cp .env.example .env.local
 npm run dev
 npm run lint
 npm run typecheck
@@ -28,14 +22,23 @@ npm run test:e2e
 npm run build
 ```
 
-Migration: `supabase/migrations/20261028195500_paperverse_initial.sql`. Bucket private'tır; `service_role` veya başka bir gizli anahtar istemciye girmez.
+Set only public client values in `.env.local`:
 
-## Gizlilik ve sahiplik
+```env
+VITE_SUPABASE_URL=<project-url>
+VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+```
 
-- Dünya UUID'sini bilmek veri okumaya yetmez; üyelik RLS ile doğrulanır.
-- Bir dünya en fazla iki üyedir ve her kullanıcı en fazla tek dünyaya üyedir.
-- Davet sırrının yalnızca SHA-256 özeti saklanır; tekrar kullanım ve dolu dünya veritabanı transaction'ında reddedilir.
-- Yalnızca çizim sahibi ad/konum/silme yapabilir. Sprite'lar private Storage bucket'tadır ve kısa ömürlü signed URL ile okunur.
-- Kullanıcı metni HTML olarak enjekte edilmez; adlar istemci ve veritabanı katmanında sınırlandırılır.
+Never expose a service-role or secret key in the frontend or GitHub Actions variables.
 
-Daha fazla ayrıntı için [ARCHITECTURE.md](ARCHITECTURE.md) ve [TEST_REPORT.md](TEST_REPORT.md) dosyalarına bakın.
+## Data and security
+
+Supabase Auth, PostgreSQL, private Storage, Row Level Security, and Realtime provide persistence. Membership, ownership, and storage path authorization are enforced server-side. Existing non-Ocean records are retained but not exposed as playable areas.
+
+## Deployment
+
+The GitHub Actions workflow builds and deploys the static frontend to GitHub Pages. Configure GitHub Pages variables and the Supabase Auth redirect/site URLs before using the hosted application. The exact live URL is documented only after a successful deployment verification.
+
+## Known limitations
+
+Anonymous sign-in must be enabled in Supabase before two-browser authenticated testing and live collaboration can work. Fullscreen and orientation behavior depend on browser support.
